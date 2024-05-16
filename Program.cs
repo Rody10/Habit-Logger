@@ -9,6 +9,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Data.Entity.ModelConfiguration.Configuration;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Habit_Logger
 {
@@ -89,17 +90,15 @@ namespace Habit_Logger
                 switch (op)
                 {
                     case "0":
-                        //close application
                         break;
                     case "1":
-                        //view all records
                         ViewAllRecords(conn);
                         break;
                     case "2":
-                        // insert record
                         InsertRecord(conn);
                         break;
                     case "3":
+                        DeleteRecord(conn);
                         break;
                     case "4":
                         break;
@@ -116,7 +115,7 @@ namespace Habit_Logger
                 SQLiteDataReader reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
-                    Console.WriteLine("Date: " + reader["Date"] + " " + "Quantity: " + reader["Quantity"]);
+                    Console.WriteLine(reader["rowID"] + " " + "Date: " + reader["Date"] + " " + "Quantity: " + reader["Quantity"]);
                 }
                 conn.Close();
                 Console.WriteLine("");
@@ -164,6 +163,51 @@ namespace Habit_Logger
                 conn.Close();
 
             } // InsertRecord
+
+            async void DeleteRecord(SQLiteConnection conn)
+            {
+                // This method is quite similar to ViewAllRecords but I decided not to reuse the method
+                // because in this case, I also want to view RowId
+                string sql = $"SELECT rowID, * From {tableName}";
+                conn.Open();
+                await using var cmd = new SQLiteCommand(sql, conn);
+                SQLiteDataReader reader = cmd.ExecuteReader();
+                while (reader.Read())
+                {
+                    Console.WriteLine("RowID: " + reader["rowID"] + " " + "Date: " + reader["Date"] + " " + "Quantity: " + reader["Quantity"]);
+                }
+                Console.WriteLine("");
+                Console.WriteLine("Enter the RowID number of the row you want to delete: ");
+                string? rowIDOfRecordToDeleteString = Console.ReadLine();
+                int rowIDOfRecordToDeleteInt;
+                while (!int.TryParse(rowIDOfRecordToDeleteString, out rowIDOfRecordToDeleteInt))
+                {
+                    Console.Write("This is not valid input. Please enter a integer value: ");
+                    rowIDOfRecordToDeleteString = Console.ReadLine();
+                }
+
+                string sqlDelete = $"DELETE FROM {tableName} WHERE RowID = (@RowID)";
+
+                await using var deleteCmd = new SQLiteCommand(sqlDelete, conn);
+                deleteCmd.Parameters.AddWithValue("@RowID", rowIDOfRecordToDeleteInt);
+
+                int rowsAffected = deleteCmd.ExecuteNonQuery();
+
+                Console.WriteLine("");
+
+                if (rowsAffected > 0)
+                {
+                    Console.WriteLine("Record has successfully been deleted from the database!\n");
+                }
+                else
+                {
+                    Console.WriteLine("Record was not successfully deleted from database!\n");
+                }
+
+                conn.Close();
+                Console.WriteLine("");
+
+            } // DeleteRecord
         }
     }
 }
