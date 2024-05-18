@@ -17,7 +17,7 @@ namespace Habit_Logger
     {
         static async Task Main(string[] args)
         {
-            string DbPath = "Filess/habit-logger.db";
+            string DbPath = "Files/habit-logger.db";
             string tableName = "HabitDateAndQuantity";
             bool endApp = false;
 
@@ -64,8 +64,6 @@ namespace Habit_Logger
                 Console.WriteLine("Type 4 to Update Record.");
                 Console.WriteLine("");
 
-                // validate user input
-
                 string? op = Console.ReadLine();
 
                 if (op == null || ! Regex.IsMatch(op, "[0|1|2|3|4]"))
@@ -90,6 +88,7 @@ namespace Habit_Logger
                 switch (op)
                 {
                     case "0":
+                        CloseApplication(conn);
                         break;
                     case "1":
                         ViewAllRecords(conn);
@@ -101,6 +100,7 @@ namespace Habit_Logger
                         DeleteRecord(conn);
                         break;
                     case "4":
+                        UpdateRecord(conn);
                         break;
                     default:
                         break;
@@ -115,7 +115,7 @@ namespace Habit_Logger
                 SQLiteDataReader reader = cmd.ExecuteReader();
                 while (reader.Read())
                 {
-                    Console.WriteLine(reader["rowID"] + " " + "Date: " + reader["Date"] + " " + "Quantity: " + reader["Quantity"]);
+                    Console.WriteLine("Date: " + reader["Date"] + " " + "Quantity: " + reader["Quantity"]);
                 }
                 conn.Close();
                 Console.WriteLine("");
@@ -164,10 +164,8 @@ namespace Habit_Logger
 
             } // InsertRecord
 
-            async void DeleteRecord(SQLiteConnection conn)
+            async void ViewAllRecordsIncludingRowIds(SQLiteConnection conn)
             {
-                // This method is quite similar to ViewAllRecords but I decided not to reuse the method
-                // because in this case, I also want to view RowId
                 string sql = $"SELECT rowID, * From {tableName}";
                 conn.Open();
                 await using var cmd = new SQLiteCommand(sql, conn);
@@ -176,7 +174,17 @@ namespace Habit_Logger
                 {
                     Console.WriteLine("RowID: " + reader["rowID"] + " " + "Date: " + reader["Date"] + " " + "Quantity: " + reader["Quantity"]);
                 }
+                conn.Close();
                 Console.WriteLine("");
+
+            } // ViewAllRecordsIncludingRowIds
+
+            async void DeleteRecord(SQLiteConnection conn)
+            { 
+
+                ViewAllRecordsIncludingRowIds(conn);
+                Console.WriteLine("");
+                conn.Open();
                 Console.WriteLine("Enter the RowID number of the row you want to delete: ");
                 string? rowIDOfRecordToDeleteString = Console.ReadLine();
                 int rowIDOfRecordToDeleteInt;
@@ -208,6 +216,51 @@ namespace Habit_Logger
                 Console.WriteLine("");
 
             } // DeleteRecord
+
+            async void UpdateRecord(SQLiteConnection conn)
+            {
+                ViewAllRecordsIncludingRowIds(conn);
+                Console.WriteLine("");
+                Console.WriteLine("Enter the RowId of the record you want to update: ");
+                string? rowIdOfRecordToBeUpdatedString = Console.ReadLine();
+                int rowIdOfRecordToBeUpdatedInt;
+                while (!int.TryParse(rowIdOfRecordToBeUpdatedString, out rowIdOfRecordToBeUpdatedInt))
+                {
+                    Console.Write("This is not valid input. Please enter a integer value: ");
+                    rowIdOfRecordToBeUpdatedString = Console.ReadLine();
+                }
+                Console.WriteLine("Enter the new Date: ");
+                string? newDate = Console.ReadLine();
+                Console.WriteLine("Enter the new Quantity: ");
+                string? newQuantity = Console.ReadLine();
+                string sqlUpdate = $"UPDATE {tableName} SET Date=(@Date), Quantity=(@Quantity) WHERE RowID = (@RowID)";
+
+                await using var updateCmd = new SQLiteCommand(sqlUpdate, conn);
+                updateCmd.Parameters.AddWithValue("@RowID", rowIdOfRecordToBeUpdatedInt);
+                updateCmd.Parameters.AddWithValue("@Date", newDate);
+                updateCmd.Parameters.AddWithValue("@Quantity", newQuantity);
+
+                conn.Open();
+
+                int rowsAffected = updateCmd.ExecuteNonQuery();
+
+                if (rowsAffected > 0)
+                {
+                    Console.WriteLine("Record was succefully modified!\n");
+                }
+                else
+                {
+                    Console.WriteLine("Record was not successfully modified!\n");
+                }
+
+                conn.Close();
+                Console.WriteLine("");
+            }
+
+            void CloseApplication(SQLiteConnection conn)
+            {
+                endApp = true;
+            }// CloseApplication
         }
     }
 }
